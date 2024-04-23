@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { auth } from '../firebase'; // Import Firebase authentication
+import { auth, firestore } from '../firebase'; // Import Firebase authentication
 import logo from '../images/logo.png';
 import locationIcon from '../images/location.png';
 import searchIcon from '../images/search.png';
@@ -15,41 +15,44 @@ import dashboardIcon from '../images/dashboard.png';
 import userProfileIcon from '../images/user.png';
 import logoutIcon from '../images/logout1.png';
 import { motion, AnimatePresence } from 'framer-motion';
+import defaultProfileImage from '../images/default-profile-image.png';
 
 // Import CSS file for animations
 import './homepage.css';
 function HomePage() {
+    const [profileImage, setProfileImage] = useState(defaultProfileImage);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
 
     // Effect to check if user is already logged in
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(user => {
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
             if (user) {
                 setIsLoggedIn(true);
+                const userRef = firestore.collection('users').doc(user.uid);
+                const userData = await userRef.get();
+                if (userData.exists) {
+                    const userDataObj = userData.data();
+                    setProfileImage(userDataObj.profileImage || defaultProfileImage);
+                }
             } else {
                 setIsLoggedIn(false);
             }
         });
-
-        // Clean up function
         return () => unsubscribe();
     }, []);
-
-    // Function to handle logout
     const handleLogout = () => {
-        setShowConfirmation(false); // Close confirmation popup
+        setShowConfirmation(false);
         auth.signOut()
             .then(() => {
                 setIsLoggedIn(false);
-                setIsDropdownOpen(false); // Close dropdown after logout
+                setIsDropdownOpen(false);
             })
             .catch(error => {
                 console.error('Error signing out:', error);
             });
     };
-
     // Function to toggle dropdown menu
     const toggleDropdown = () => {
         setIsDropdownOpen(!isDropdownOpen);
@@ -63,7 +66,7 @@ function HomePage() {
                     <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
                         <img src={logo} alt="Logo" className="h-20" />
                         <Link to="/" className="text-lg font-semibold hover:text-gray-300 transition duration-300">Home</Link>
-                        <Link to="/products" className="text-lg font-semibold hover:text-gray-300 transition duration-300">Products</Link>
+                        <Link to="/products" className="text-lg font-semibold hover:text-gray-300 transition duration-300">Company</Link>
                         <Link to="/about" className="text-lg font-semibold hover:text-gray-300 transition duration-300">About Us</Link>
                         <div className="relative">
                             <input type="text" placeholder="Search for a location" className="pl-8 pr-10 py-2 rounded-full bg-gradient-to-r from-gray-700 to-gray-600 text-white focus:outline-none focus:bg-gray-800" />
@@ -71,7 +74,7 @@ function HomePage() {
                             <img src={searchIcon} alt="Search" className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 cursor-pointer" />
                         </div>
                     </div>
-                    <div className="flex items-center space-x-6 pt-4" >
+                    <div className="flex items-center space-x-6 pt-2" >
                         {!isLoggedIn ? (
                             <>
                                 <Link to="/signup" className="text-lg font-semibold bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 text-white px-4 py-2 rounded-lg hover:text-gray-300 transition duration-300">Sign Up</Link>
@@ -79,39 +82,39 @@ function HomePage() {
                             </>
                         ) : (
                             <div className="relative">
-                                <motion.img
-                                    src={userIcon}
-                                    alt="User"
-                                    className="h-10 mb-4 cursor-pointer"
-                                    onClick={toggleDropdown}
-                                    whileHover={{ scale: 1.1 }}
-                                />
-                                <AnimatePresence>
-                                    {isDropdownOpen && (
-                                        <motion.div
-                                            className={`absolute transform -translate-x-1/2 top-12 w-48 bg-white rounded-lg shadow-lg overflow-hidden dropdown-menu`}
-                                            style={{ right: '-200%', zIndex: '999' }}
-                                            initial={{ opacity: 0, y: -20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -20 }}
-                                            transition={{ duration: 0.3 }}
-                                        >
-                                            <Link to="/profile" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
-                                                <img src={userProfileIcon} alt="Profile" className="h-6 mr-2 text-black" />
-                                                Profile
-                                            </Link>
-                                            <Link to="/dashboard" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
-                                                <img src={dashboardIcon} alt="Dashboard" className="h-6 mr-2 text-black" />
-                                                Dashboard
-                                            </Link>
-                                            <div className="border-t border-gray-300"></div>
-                                            <button className="block w-full text-left px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black" onClick={() => setShowConfirmation(true)}>
-                                                <img src={logoutIcon} alt="Logout" className="h-6 mr-2 text-black" />
-                                                Logout
-                                            </button>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                            <motion.img
+                                src={profileImage}
+                                alt="User"
+                                className="h-12 w-12 cursor-pointer rounded-full"
+                                onClick={toggleDropdown}
+                                whileHover={{ scale: 1.1 }}
+                            />
+                            <AnimatePresence>
+                                {isDropdownOpen && (
+                                    <motion.div
+                                        className={`absolute transform -translate-x-1/2 top-12 mr-5 mt-2 w-48 bg-white rounded-lg shadow-lg overflow-hidden dropdown-menu`}
+                                        style={{ right: '-200%', zIndex: '999' }}
+                                        initial={{ opacity: 0, y: -20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        <Link to="/profile" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
+                                            <img src={userProfileIcon} alt="Profile" className="h-6 mr-2 text-black" />
+                                            Profile
+                                        </Link>
+                                        <Link to="/dashboard" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
+                                            <img src={dashboardIcon} alt="Dashboard" className="h-6 mr-2 text-black" />
+                                            Dashboard
+                                        </Link>
+                                        <div className="border-t border-gray-300"></div>
+                                        <button className="block w-full text-left px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black" onClick={() => setShowConfirmation(true)}>
+                                            <img src={logoutIcon} alt="Logout" className="h-6 mr-2 text-black" />
+                                            Logout
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                             </div>
                         )}
                     </div>
