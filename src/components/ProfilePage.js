@@ -29,11 +29,19 @@ const ProfilePage = () => {
         contact_number: 'gray-300',
         email: 'gray-300'
     });
+    const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+    const [showDeleteSuccessPopup, setShowDeleteSuccessPopup] = useState(false)
+    const [showVerificationPopup, setShowVerificationPopup] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [showPopup, setShowPopup] = useState(false);
+    const [invalidEmailError, setInvalidEmailError] = useState(false);
+
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
     const [showErrorPopup, setShowErrorPopup] = useState(false);
     const [showDontMatchPopup, setShowDontMatchPopup] = useState(false);
+// Define state variables for error popups
+const [showDeleteErrorPopup, setShowDeleteErrorPopup] = useState(false);
+const [showReauthenticationErrorPopup, setShowReauthenticationErrorPopup] = useState(false);
 
     const [showAuthProviderPopup, setShowAuthProviderPopup] = useState(false);
     const [profileImageOpacity, setProfileImageOpacity] = useState(1);  
@@ -41,6 +49,83 @@ const ProfilePage = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleDeleteConfirmation = () => {
+        setShowDeleteConfirmation(true);
+    };
+
+    const handleCloseDeleteConfirmation = () => {
+        setShowDeleteConfirmation(false);
+    };
+    const handleOkButtonClick = () => {
+        setShowDeleteSuccessPopup(false);
+        // Navigate to another page to trigger a full refresh of the ProfilePage component
+        navigate('/');
+    };
+
+    const handleVerificationPopup = () => {
+        // Close the delete confirmation popup
+        setShowDeleteConfirmation(false);
+        // Show the verification popup
+        setShowVerificationPopup(true);
+    };
+    
+    const handleCloseVerificationPopup = () => {
+        setShowVerificationPopup(false);
+    };
+    const handleDeleteAccount = () => {
+        const user = auth.currentUser;
+        const userEmail = formData.email; // Get the user's email from the form data
+        const enteredEmail = email; // Get the entered email from the input field
+        const enteredPassword = password; // Get the entered password from the input field
+    
+        // Check if the entered email matches the user's email
+        if (enteredEmail !== userEmail) {
+            setErrorMessage('Invalid email.'); // Set an error message
+            setInvalidEmailError(true); // Set the invalid email error flag
+            return;
+        }
+    
+        // Reauthenticate the user before deleting the account
+        const credential = firebase.auth.EmailAuthProvider.credential(
+            userEmail,
+            enteredPassword
+        );
+    
+        user.reauthenticateWithCredential(credential)
+            .then(() => {
+                // Reauthentication successful, proceed with account deletion
+                console.log("User reauthenticated successfully.");
+                // Delete the user account
+                return user.delete();
+            })
+            .then(() => {
+                // Account deleted successfully
+                console.log("Account deleted successfully.");
+                // Delete the user document from Firestore
+                firestore.collection('users').doc(user.uid).delete()
+                    .then(() => {
+                        console.log("User document deleted successfully.");
+                        // Set success message or show success popup
+                        setShowDeleteSuccessPopup(true);
+                    })
+                    .catch((error) => {
+                        // Handle errors during user document deletion
+                        console.error("Error deleting user document:", error.message);
+                        // Set error message or show error popup
+                        setShowErrorPopup(true);
+                    });
+            })
+            .catch((error) => {
+                // Handle errors during account deletion
+                console.error("Error deleting account:", error.message);
+                // Set error message or show error popup
+                setShowErrorPopup(true);
+            });
+    };
+    
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
@@ -126,6 +211,31 @@ const ProfilePage = () => {
                     setFormData(userDataObj);
                     setInitialFormData(userDataObj);
                     setProfileImage(userDataObj.profileImage || defaultProfileImage); // Update profileImage state with URL from Firestore, or use defaultProfileImage if not available
+                } else {
+                    await userRef.set({
+                        first_name: '',
+                        last_name: '',
+                        birthdate: '',
+                        address: '',
+                        contact_number: '',
+                        email: user.email
+                    });
+                }
+            } else {
+                setIsLoggedIn(false);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                setIsLoggedIn(true);
+                const userRef = firestore.collection('users').doc(user.uid);
+                const userData = await userRef.get();
+                if (userData.exists) {
+                    const userDataObj = userData.data();
+                    setProfileImage(userDataObj.profileImage || defaultProfileImage);
                 } else {
                     await userRef.set({
                         first_name: '',
@@ -272,38 +382,38 @@ const handleProfileImageChange = (e) => {
                         ) : (
                             <div className="relative">
                                 <motion.img
-                                    src={userIcon}
-                                    alt="User"
-                                    className="h-10 mb-4 cursor-pointer"
-                                    onClick={toggleDropdown}
-                                    style={{ cursor: 'pointer' }}
-                                    initial={{ scale: 1 }}
-                                    whileHover={{ scale: 1.2 }}
-                                />
-                                {isDropdownOpen && (
-                                    <motion.div
-                                        className={`absolute transform -translate-x-1/2 top-12 w-48 bg-white rounded-lg shadow-lg overflow-hidden dropdown-menu`}
-                                        style={{ right: '-200%', zIndex: '999' }}
-                                        initial={{ opacity: 0, y: -20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -20 }}
-                                        transition={{ duration: 0.3 }}
-                                    >
-                                        {isLoggedIn ? (
-                                            <>
-                                                <Link to="/profile" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
-                                                    <img src={userProfileIcon} alt="Profile" className="h-6 mr-2 text-black" />
-                                                    Profile
-                                                </Link>
-                                                <Link to="/dashboard" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
-                                                    <img src={dashboardIcon} alt="Dashboard" className="h-6 mr-2 text-black" />
-                                                    Dashboard
-                                                </Link>
-                                                <div className="border-t border-gray-300"></div>
-                                                <button className="block w-full text-left px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black" onClick={handleLogout}>
-                                                    <img src={logoutIcon} alt="Logout" className="h-6 mr-2 text-black" />
-                                                    Logout
-                                                </button>
+                src={profileImage} // Use profileImage state as the src
+                alt="User"
+                className="h-12 w-12 cursor-pointer rounded-full"
+                onClick={toggleDropdown}
+                style={{ cursor: 'pointer' }}
+                initial={{ scale: 1 }}
+                whileHover={{ scale: 1.2 }}
+            />
+            {isDropdownOpen && (
+                <motion.div
+                    className={`absolute transform -translate-x-1/2 top-12 w-48 mt-2 mr- bg-white rounded-lg shadow-lg overflow-hidden dropdown-menu`}
+                    style={{ right: '-200%', zIndex: '999' }}
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    {isLoggedIn ? (
+                        <>
+                            <Link to="/profile" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
+                                <img src={userProfileIcon} alt="Profile" className="h-6 mr-2 text-black" />
+                                Profile
+                            </Link>
+                            <Link to="/dashboard" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
+                                <img src={dashboardIcon} alt="Dashboard" className="h-6 mr-2 text-black" />
+                                Dashboard
+                            </Link>
+                            <div className="border-t border-gray-300"></div>
+                            <button className="block w-full text-left px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black" onClick={handleLogout}>
+                                <img src={logoutIcon} alt="Logout" className="h-6 mr-2 text-black" />
+                                Logout
+                            </button>
                                             </>
                                         ) : (
                                             <>
@@ -347,6 +457,12 @@ const handleProfileImageChange = (e) => {
                     </div>
                 </div>
                 <p className="text-gray-700 text-center">{formData.email}</p>
+                {/* Thin line */}
+<div className="inline-block border-b-2 border-gray-400 h-1 w-full mt-6"></div>
+{/* Close Account button */}
+<div className="flex justify-center mt-4">
+    <button className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onClick={handleDeleteConfirmation}>Close Account</button>
+</div>
             </div>
         </motion.div>
                 </div>
@@ -635,6 +751,123 @@ const handleProfileImageChange = (e) => {
             >
                 OK
             </button>
+        </div>
+    </div>
+)}
+
+
+
+             {/* Delete Confirmation Popup */}
+             {showDeleteConfirmation && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+                    <div className="bg-white p-8 rounded-lg">
+                        <p className="text-lg font-semibold mb-4">Are you sure you want to delete your account?</p>
+                        <div className="flex justify-center">
+                            <button
+                                onClick={handleVerificationPopup}
+                                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mr-4"
+                            >
+                                Yes
+                            </button>
+                            <button
+                                onClick={handleCloseDeleteConfirmation}
+                                className="bg-gray-400 text-black font-bold py-2 px-4 rounded"
+                            >
+                                No
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+{/* Verification Popup */}
+{showVerificationPopup && (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+        <div className="bg-white p-8 rounded-lg max-w-lg"> {/* Adjust max-width here */}
+            <p className="text-lg font-semibold mb-4">Verification Required</p>
+            <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="form-input pl-3 py-2 rounded-md w-full mb-3 bg-gray-100" // Added background color
+            />
+            <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                className="form-input pl-3 py-2 rounded-md w-full mb-3 bg-gray-100" // Added background color
+            />
+            <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm Password"
+                className="form-input pl-3 py-2 rounded-md w-full mb-3 bg-gray-100" // Added background color
+            />
+            <p className="text-sm text-gray-600 mb-4">By clicking 'Delete Account,' you acknowledge that this action is irreversible. The website and its developers will not be held responsible for any loss of data or access once your account is deleted. Are you sure you want to proceed?</p>
+            <div className="flex justify-end">
+                <button
+                    onClick={handleDeleteAccount}
+                    className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mr-4"
+                >
+                    Delete Account
+                </button>
+                <button
+                    onClick={handleCloseVerificationPopup}
+                    className="bg-gray-400 text-black font-bold py-2 px-4 rounded"
+                >
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+)}
+           
+          {/* Success Popup */}
+            {showDeleteSuccessPopup && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+                    <div className="bg-white p-8 rounded-lg">
+                        <p className="text-green-400 text-lg">Your account has been successfully deleted.</p>
+                        <button
+    onClick={handleOkButtonClick}
+    className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-8 rounded mt-4 block mx-auto"
+>
+    OK
+</button>
+                    </div>
+                </div>
+            )}
+            {/* Reauthentication Error Popup */}
+{showReauthenticationErrorPopup && (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+        <div className="bg-white p-8 rounded-lg">
+            <p className="text-lg font-semibold mb-4">Please check your current password.</p>
+            <button
+                onClick={() => setShowReauthenticationErrorPopup(false)}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mt-4 block mx-auto"
+            >
+                OK
+            </button>
+        </div>
+    </div>
+)}
+{/* Invalid Email Error Popup */}
+{invalidEmailError && (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+        <div className="bg-white p-8 rounded-lg">
+            <p className="text-lg font-semibold mb-4">Invalid Email</p>
+            <p className="text-sm text-gray-600 mb-4">The entered email does not match your account's email address.</p>
+            <div className="flex justify-center">
+                <button
+                    onClick={() => setInvalidEmailError(false)}
+                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                >
+                    OK
+                </button>
+            </div>
         </div>
     </div>
 )}
