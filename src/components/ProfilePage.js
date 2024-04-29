@@ -470,7 +470,7 @@ const handleProfileImageChange = (e) => {
 <div className="inline-block border-b-2 border-gray-400 h-1 w-full mt-6"></div>
 {/* Close Account button */}
 <div className="flex justify-center mt-4">
-    <button className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onClick={handleDeleteConfirmation}>Close Account</button>
+    <button className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" onClick={handleDeleteConfirmation}>Deactivate Account</button>
 </div>
             </div>
         </motion.div>
