@@ -35,6 +35,7 @@ const ProfilePage = () => {
     const [errorMessage, setErrorMessage] = useState('');
     const [showPopup, setShowPopup] = useState(false);
     const [invalidEmailError, setInvalidEmailError] = useState(false);
+    const [showPasswordMatchErrorPopup, setShowPasswordMatchErrorPopup] = useState(false);
 
     const [showSuccessPopup, setShowSuccessPopup] = useState(false);
     const [showErrorPopup, setShowErrorPopup] = useState(false);
@@ -80,6 +81,7 @@ const [showReauthenticationErrorPopup, setShowReauthenticationErrorPopup] = useS
         const userEmail = formData.email; // Get the user's email from the form data
         const enteredEmail = email; // Get the entered email from the input field
         const enteredPassword = password; // Get the entered password from the input field
+        const enteredConfirmPassword = confirmPassword; // Get the entered confirm password from the input field
     
         // Check if the entered email matches the user's email
         if (enteredEmail !== userEmail) {
@@ -88,6 +90,11 @@ const [showReauthenticationErrorPopup, setShowReauthenticationErrorPopup] = useS
             return;
         }
     
+        if (enteredPassword !== enteredConfirmPassword) {
+            setErrorMessage('Passwords do not match.'); // Set an error message
+            setShowPasswordMatchErrorPopup(true); // Show error popup
+            return;
+        }
         // Reauthenticate the user before deleting the account
         const credential = firebase.auth.EmailAuthProvider.credential(
             userEmail,
@@ -359,79 +366,81 @@ const handleProfileImageChange = (e) => {
         }
     }, [confirmSave, formData, profileImage]);
     return (
-        <div style={{ backgroundColor: '#eeeeee', minHeight: '100vh' }}>
-            <nav className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-4 md:p-6">
-                <div className="container mx-auto flex flex-col md:flex-row justify-between items-center">
-                    <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
-                        <img src={logo} alt="Logo" className="h-20" />
-                        <Link to="/" className="text-lg font-semibold hover:text-gray-300 transition duration-300">Home</Link>
-                        <Link to="/products" className="text-lg font-semibold hover:text-gray-300 transition duration-300">Products</Link>
-                        <Link to="/about" className="text-lg font-semibold hover:text-gray-300 transition duration-300">About Us</Link>
-                        <div className="relative">
-                            <input type="text" placeholder="Search for a location" className="pl-8 pr-10 py-2 rounded-full bg-gradient-to-r from-gray-700 to-gray-600 text-white focus:outline-none focus:bg-gray-800" />
-                            <img src={locationIcon} alt="Location" className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4" />
-                            <img src={searchIcon} alt="Search" className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 cursor-pointer" />
+            <div style={{ backgroundColor: '#eeeeee', minHeight: '100vh' }}>
+                <nav className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-4 md:p-6">
+                    <div className="container mx-auto flex flex-col md:flex-row justify-between items-center">
+                        <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6">
+                            <img src={logo} alt="Logo" className="h-20" />
+                            <div className="flex">
+              <Link to="/" className="text-lg font-semibold hover:text-gray-300 transition duration-300">Home</Link>
+              <Link to="/products" className="text-lg font-semibold hover:text-gray-300 ml-4">Products</Link>
+              <Link to="/about" className="text-lg font-semibold hover:text-gray-300 ml-4">About Us</Link>
+            </div>
+                            <div className="relative">
+                                <input type="text" placeholder="Search for a location" className="pl-8 pr-10 py-2 rounded-full bg-gradient-to-r from-gray-700 to-gray-600 text-white focus:outline-none focus:bg-gray-800" />
+                                <img src={locationIcon} alt="Location" className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4" />
+                                <img src={searchIcon} alt="Search" className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 cursor-pointer" />
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-6 pt-4">
+                            {!isLoggedIn ? (
+                                <>
+                                    <Link to="/signup" className="text-lg font-semibold bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 text-white px-4 py-2 rounded-lg hover:text-gray-300 transition duration-300">Sign Up</Link>
+                                    <Link to="/login" className="text-lg font-semibold bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 text-white px-4 py-2 rounded-lg hover:text-gray-300 transition duration-300">Log In</Link>
+                                </>
+                            ) : (
+                                <div className="relative">
+                                    <motion.img
+                    src={profileImage} // Use profileImage state as the src
+                    alt="User"
+                    className="h-12 w-12 cursor-pointer rounded-full"
+                    onClick={toggleDropdown}
+                    style={{ cursor: 'pointer' }}
+                    initial={{ scale: 1 }}
+                    whileHover={{ scale: 1.2 }}
+                />
+                {isDropdownOpen && (
+                    <motion.div
+                        className={`absolute transform -translate-x-1/2 top-12 w-48 mt-2 mr- bg-white rounded-lg shadow-lg overflow-hidden dropdown-menu`}
+                        style={{ right: '-200%', zIndex: '999' }}
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        {isLoggedIn ? (
+                            <>
+                                <Link to="/profile" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
+                                    <img src={userProfileIcon} alt="Profile" className="h-6 mr-2 text-black" />
+                                    Profile
+                                </Link>
+                                <Link to="/dashboard" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
+                                    <img src={dashboardIcon} alt="Dashboard" className="h-6 mr-2 text-black" />
+                                    Dashboard
+                                </Link>
+                                <div className="border-t border-gray-300"></div>
+                                <button className="block w-full text-left px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black" onClick={handleLogout}>
+                                    <img src={logoutIcon} alt="Logout" className="h-6 mr-2 text-black" />
+                                    Logout
+                                </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Link to="/signup" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
+                                                        Sign Up
+                                                    </Link>
+                                                    <Link to="/login" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
+                                                        Log In
+                                                    </Link>
+                                                </>
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
-                    <div className="flex items-center space-x-6 pt-4">
-                        {!isLoggedIn ? (
-                            <>
-                                <Link to="/signup" className="text-lg font-semibold bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 text-white px-4 py-2 rounded-lg hover:text-gray-300 transition duration-300">Sign Up</Link>
-                                <Link to="/login" className="text-lg font-semibold bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 text-white px-4 py-2 rounded-lg hover:text-gray-300 transition duration-300">Log In</Link>
-                            </>
-                        ) : (
-                            <div className="relative">
-                                <motion.img
-                src={profileImage} // Use profileImage state as the src
-                alt="User"
-                className="h-12 w-12 cursor-pointer rounded-full"
-                onClick={toggleDropdown}
-                style={{ cursor: 'pointer' }}
-                initial={{ scale: 1 }}
-                whileHover={{ scale: 1.2 }}
-            />
-            {isDropdownOpen && (
-                <motion.div
-                    className={`absolute transform -translate-x-1/2 top-12 w-48 mt-2 mr- bg-white rounded-lg shadow-lg overflow-hidden dropdown-menu`}
-                    style={{ right: '-200%', zIndex: '999' }}
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    {isLoggedIn ? (
-                        <>
-                            <Link to="/profile" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
-                                <img src={userProfileIcon} alt="Profile" className="h-6 mr-2 text-black" />
-                                Profile
-                            </Link>
-                            <Link to="/dashboard" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
-                                <img src={dashboardIcon} alt="Dashboard" className="h-6 mr-2 text-black" />
-                                Dashboard
-                            </Link>
-                            <div className="border-t border-gray-300"></div>
-                            <button className="block w-full text-left px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black" onClick={handleLogout}>
-                                <img src={logoutIcon} alt="Logout" className="h-6 mr-2 text-black" />
-                                Logout
-                            </button>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Link to="/signup" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
-                                                    Sign Up
-                                                </Link>
-                                                <Link to="/login" className="block px-4 py-2 flex items-center hover:bg-gray-200 transition duration-300 text-black">
-                                                    Log In
-                                                </Link>
-                                            </>
-                                        )}
-                                    </motion.div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </nav>
+                </nav>
             <div className="flex-grow container mx-auto mt-8 flex justify-center">
                 <div className="w-full p-5 md:w-1/4">
                 <motion.div
@@ -563,22 +572,11 @@ const handleProfileImageChange = (e) => {
                             </div>
                         </div>
                         <div className="mb-6">
-                            <label htmlFor="email" className="block text-gray-700 mb-1">Email:</label>
-                            <div className="relative">
-                                <input type="email" id="email" name="email" value={formData.email} onChange={handleInputChange} className={`form-input pl-3 py-2 rounded-md w-full ${editMode.email ? 'bg-gray-100' : 'bg-gray-300'}`} disabled={!editMode.email} />
-                                {!editMode.email ? (
-                                  <button className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-700" onClick={(e) => handleEdit('email', e)}>
-                                  Edit
-                              </button>
-                              
-                                ) : (
-                                    <button className="absolute right-4 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700" onClick={(e) => handleEdit('email', e)}>
-                                    Cancel
-                                </button>
-                                
-                                )}
-                            </div>
-                        </div>
+    <label htmlFor="email" className="block text-gray-700 mb-1">Email:</label>
+    <input type="email" id="email" name="email" value={auth.currentUser ? auth.currentUser.email : ''} className="form-input pl-3 py-2 rounded-md w-full bg-gray-300" readOnly />
+</div>
+
+
                         <div className="flex justify-end mb-6">
                         <button type="submit" className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded ">SAVE</button>
                         </div>
@@ -868,6 +866,21 @@ const handleProfileImageChange = (e) => {
                     OK
                 </button>
             </div>
+        </div>
+    </div>
+)}
+
+{showPasswordMatchErrorPopup && (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 error-popup">
+        <div className="bg-white p-8 rounded-lg">
+            <img src={errorIcon} alt="Error" className="h-10 mx-auto mb-4" />
+            <p className="text-red-500 text-lg">Passwords do not match. Please try again.</p>
+            <button
+                onClick={() => setShowPasswordMatchErrorPopup(false)}
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded mt-4 block mx-auto"
+            >
+                OK
+            </button>
         </div>
     </div>
 )}
